@@ -2,8 +2,8 @@ use bevy::{math::vec3, prelude::*, scene::ron::de::Position, window::PrimaryWind
 use perlin2d::PerlinNoise2D;
 use rand::prelude::*;
 
-const WORLD_X: i32 = 200;
-const WORLD_Y: i32 = 200;
+const WORLD_X: i32 = 40;
+const WORLD_Y: i32 = 40;
 
 #[derive(Component,Debug)]
 struct WorldPixel(String);
@@ -92,6 +92,10 @@ fn generate_pixel(commands: &mut Commands, color:Color, position:Transform, mate
     }).insert(material);
 }
 
+fn select_machine_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.spawn(NodeBundle::default());
+}
+
 fn camera_movement(
     mut query: Query<&mut Transform, With<Camera2d>>,
     mut camera_query: Query<&mut OrthographicProjection, With<Camera2d>>,
@@ -115,9 +119,11 @@ fn camera_movement(
         for mut c in camera_query.iter_mut() {
             if input.pressed(KeyCode::KeyE) {
                 c.scale += 0.6 * time.delta_seconds();
+                println!("{:?}", c);
             }
             if input.pressed(KeyCode::KeyQ) {
                 c.scale += -0.6 * time.delta_seconds();
+                println!("{:?}", c);
             }   
         }
 
@@ -138,7 +144,7 @@ fn cursor_to_world_position(
         .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
         .map(|ray| ray.origin.truncate())
     {
-        mycoords.0 = world_position;
+        mycoords.0 = world_position + Vec2::new(0.5, 0.5);
     }
 }
 
