@@ -1,9 +1,9 @@
-use bevy::{math::vec3, prelude::*, window::PrimaryWindow};
+use bevy::{math::vec3, prelude::*, scene::ron::de::Position, window::PrimaryWindow};
 use perlin2d::PerlinNoise2D;
 use rand::prelude::*;
 
-const WORLD_X: i32 = 100;
-const WORLD_Y: i32 = 100;
+const WORLD_X: i32 = 200;
+const WORLD_Y: i32 = 200;
 
 #[derive(Component,Debug)]
 struct WorldPixel(String);
@@ -15,26 +15,35 @@ struct MainCamera;
 struct MyWorldCoords(Vec2);
 
 #[derive(Component,Debug)]
-struct MachineType(String);
+struct EntityType(String);
+
+#[derive(Resource, Debug)]
+struct PixelsTaked(Vec<Vec3>);
 
 fn main() {
     App::new()
         .insert_resource(MyWorldCoords(Vec2 { x: 0., y: 0. }))
+        .insert_resource(PixelsTaked(vec![Vec3 { x: 0., y: 0., z: 0. }]))
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
-        .add_systems(Update, (update_ui, cursor_to_world_position, pixel_interaction, camera_movement))
+        .add_systems(Update, (update_ui, cursor_to_world_position, pixel_selected, pixel_interaction, camera_movement))
         .run();
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((Camera2dBundle::default(), MainCamera));
     commands.spawn(TextBundle::from_section("vec2".to_string(), TextStyle {font_size: 60., ..default()} ));
+    commands.spawn(SpriteBundle {
+        sprite: Sprite { color: Color::rgba(0.94, 0.94,0.94, 0.3), ..default() },
+        transform: Transform::from_xyz(-2., 0., 0.8),
+        ..default()
+    }).insert(EntityType("selected".to_string()));
     generate_world(&mut commands);
 }
 
 fn generate_world(mut commands: &mut Commands) {
     // octaves: 6, amplitude: 1, frequency: 0.6
-    let perlin = PerlinNoise2D::new(6, 1.0, 0.6, 1.0, 2.0, (-120.0, 120.0), 0.5, 101);
+    let perlin = PerlinNoise2D::new(7, 1.0, 0.6, 1.0, 2.0, (-600.0, 600.0), 0.5, 101);
 
     let mut x: i32 = 0;
     let mut y: i32 = 0;
@@ -91,30 +100,24 @@ fn camera_movement(
 ) {
     for mut p in query.iter_mut() {
         if input.pressed(KeyCode::KeyA) {
-            println!("{:?}", p);
             p.translation += vec3(-120., 0., 0.) * time.delta_seconds();
         }
         if input.pressed(KeyCode::KeyD) {
-            println!("{:?}", p);
             p.translation += vec3(120., 0., 0.) * time.delta_seconds();
         }
         if input.pressed(KeyCode::KeyW) {
-            println!("{:?}", p);
             p.translation += vec3(0., 120., 0.) * time.delta_seconds();
         }
         if input.pressed(KeyCode::KeyS) {
-            println!("{:?}", p);
             p.translation += vec3(0., -120., 0.) * time.delta_seconds();
         }
 
         for mut c in camera_query.iter_mut() {
             if input.pressed(KeyCode::KeyE) {
-                c.scale += 0.8 * time.delta_seconds();
-                println!("{:?}", c);
+                c.scale += 0.6 * time.delta_seconds();
             }
             if input.pressed(KeyCode::KeyQ) {
-                c.scale += -0.8 * time.delta_seconds();
-                println!("{:?}", c);
+                c.scale += -0.6 * time.delta_seconds();
             }   
         }
 
@@ -148,28 +151,54 @@ fn update_ui(
     }
 }
 
+fn pixel_selected(
+    mouse_position: Res<MyWorldCoords>,
+    mut pixel_selected: Query<(&mut Transform, &EntityType), With<Sprite>>
+) {
+    for mut pixel in pixel_selected.iter_mut() {
+        if pixel.1.0 == "selected".to_string() {
+            let x_value: i32 = mouse_position.0.x as i32;
+            let y_value: i32 = mouse_position.0.y as i32; 
+            pixel.0.translation = Vec3::new(x_value as f32, y_value as f32, 1.01);
+        }
+    }
+}
+
 fn pixel_interaction(
     mut world_data: Query<(&mut Sprite, &Transform), With<WorldPixel>>,
     mouse_position: Res<MyWorldCoords>,
     input: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
-    asset_server: Res<AssetServer>
+    asset_server: Res<AssetServer>,
+    mut pixels_available: ResMut<PixelsTaked>
 ) {
     if input.pressed(MouseButton::Left) {
         let x_value = mouse_position.0.x as i64;
         let y_value = mouse_position.0.y as i64;
-        let click_position = Vec3::new(x_value as f32, y_value as f32, 0.9);
+        let mut click_position = Vec3::new(x_value as f32, y_value as f32, 0.9);
 
         for pixel in world_data.iter_mut() {
-            if pixel.1.translation == click_position {
-            //    pixel.0.color = Color::GREEN;
-               spawn_machine(&mut commands, &asset_server, click_position);
+            if pixel.1.translation == click_position && take_pixel(&mut click_position, &pixels_available){
+               //pixel.0.color = Color::GREEN;
+               spawn_machine(&mut commands, &asset_server, click_position, &mut pixels_available);
             }
         }
     }
 }
 
-fn spawn_machine(commands: &mut Commands, asset_server: &AssetServer, position: Vec3) {
+fn take_pixel(position: &mut Vec3, pixels_available: &ResMut<PixelsTaked>) -> bool {
+    for pixel_position in pixels_available.0.iter() {
+        if pixel_position == position {
+            println!("---> alredy taked: pixel {:?} - click {:?}", pixel_position, position);
+            return false;
+        }
+    }
+    true
+}
+
+fn spawn_machine(commands: &mut Commands, asset_server: &AssetServer, position: Vec3, pixels_available: &mut PixelsTaked) {
+    pixels_available.0.push(position);
+    println!("turtle spawned at {:?}", position);
     commands.spawn((
         SpriteBundle {
             texture: asset_server.load("turtl.png"),
@@ -180,7 +209,7 @@ fn spawn_machine(commands: &mut Commands, asset_server: &AssetServer, position: 
             transform: Transform::from_xyz(position.x, position.y, 0.9),
             ..default()
         },
-        MachineType("turtle".to_string())
+        EntityType("turtle".to_string())
     ));
 }
 
