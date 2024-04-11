@@ -2,8 +2,8 @@ use bevy::{math::vec3, prelude::*, scene::ron::de::Position, window::PrimaryWind
 use perlin2d::PerlinNoise2D;
 use rand::prelude::*;
 
-const WORLD_X: i32 = 40;
-const WORLD_Y: i32 = 40;
+const WORLD_X: i32 = 100;
+const WORLD_Y: i32 = 100;
 
 #[derive(Component,Debug)]
 struct WorldPixel(String);
@@ -25,14 +25,14 @@ fn main() {
         .insert_resource(MyWorldCoords(Vec2 { x: 0., y: 0. }))
         .insert_resource(PixelsTaked(vec![Vec3 { x: 0., y: 0., z: 0. }]))
         .add_plugins(DefaultPlugins)
-        .add_systems(Startup, setup)
-        .add_systems(Update, (update_ui, cursor_to_world_position, pixel_selected, pixel_interaction, camera_movement))
+        .add_systems(Startup, (setup, select_machine_ui))
+        .add_systems(Update, (cursor_to_world_position, pixel_selected, pixel_interaction, camera_movement))
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands) {
     commands.spawn((Camera2dBundle::default(), MainCamera));
-    commands.spawn(TextBundle::from_section("vec2".to_string(), TextStyle {font_size: 60., ..default()} ));
+    // commands.spawn(TextBundle::from_section("vec2".to_string(), TextStyle {font_size: 60., ..default()} ));
     commands.spawn(SpriteBundle {
         sprite: Sprite { color: Color::rgba(0.94, 0.94,0.94, 0.3), ..default() },
         transform: Transform::from_xyz(-2., 0., 0.8),
@@ -42,8 +42,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn generate_world(mut commands: &mut Commands) {
+    let mut rng = rand::thread_rng();
+    let mut random_value: f64 = rng.gen();
     // octaves: 6, amplitude: 1, frequency: 0.6
-    let perlin = PerlinNoise2D::new(7, 1.0, 0.6, 1.0, 2.0, (-600.0, 600.0), 0.5, 101);
+    let perlin = PerlinNoise2D::new(7, 1.0, 0.6, 1.0, 2.0, (-600.0, 600.0), random_value, 101);
 
     let mut x: i32 = 0;
     let mut y: i32 = 0;
@@ -53,6 +55,7 @@ fn generate_world(mut commands: &mut Commands) {
             println!("{:?}", val);
             // biome order
             // 1 deep water 2 water  3 sand  4 grass 5 mountain
+            random_value = rng.gen();
             if val <= -0.25 { // deep water 
                 generate_pixel(&mut commands, Color::rgb(0.1, 0.7, 0.8), Transform::from_xyz(x as f32, y as f32, 0.9), WorldPixel("water0".to_string()));
             }
@@ -69,9 +72,7 @@ fn generate_world(mut commands: &mut Commands) {
                 generate_pixel(&mut commands,Color::rgb(0.5, 0.9, 0.4),Transform::from_xyz(x as f32, y as f32, 0.9),WorldPixel("mountain0".to_string()));
             }
             if val > 0.5 { 
-                let mut rng = rand::thread_rng();
-                let r: f64 = rng.gen();
-                if r < 0.92 {
+                if random_value < 0.92 {
                     generate_pixel(&mut commands,Color::rgb(0.63, 0.64, 0.67), Transform::from_xyz(x as f32, y as f32, 0.9),WorldPixel("stone0".to_string()));
                 } else {
                     generate_pixel(&mut commands,Color::rgb(1., 1., 0.4),Transform::from_xyz(x as f32, y as f32, 0.9),WorldPixel("gold".to_string()));
@@ -93,7 +94,58 @@ fn generate_pixel(commands: &mut Commands, color:Color, position:Transform, mate
 }
 
 fn select_machine_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(NodeBundle::default());
+    commands.spawn(NodeBundle {
+        style: Style{
+            display: Display::Flex,
+            width: Val::Percent(100.), 
+            height: Val::Percent(100.),
+            ..default()
+        },
+        ..default()
+    }).with_children(|parent | {
+        parent.spawn(NodeBundle{
+            style: Style { 
+                display: Display::Flex,
+                width: Val::Percent(80.), 
+                height: Val::Percent(100.), 
+                ..default() 
+            },
+            ..default()
+        }).with_children(|parent| {
+            parent.spawn(TextBundle::from_section("None", TextStyle{font_size:40., color: Color::rgb(0.4, 0.9, 0.4), ..default()}));
+        });
+    }).with_children(|parent | {
+        parent.spawn(NodeBundle{
+            style: Style { 
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                width: Val::Percent(20.), 
+                height: Val::Percent(100.), 
+                ..default() 
+            },
+            background_color: BackgroundColor(Color::rgba(0.245,0.223,0.15, 0.180)),
+            ..default()
+        }).with_children(|parent | {
+            parent.spawn(ButtonBundle{
+                style: Style {
+                    width: Val::Px(200.),
+                    height: Val::Px(150.),
+                    display: Display::Flex,
+                    justify_content: JustifyContent::Center,
+                    align_content: AlignContent::Center,
+                    border: UiRect::all(Val::Px(5.0)),
+                    ..default()
+                },
+                image: UiImage{
+                    texture: asset_server.load("turtl.png"),
+                    ..default()
+                },
+                background_color: BackgroundColor(Color::rgba(0.89, 0.89, 0.89, 0.5)),
+                ..default()
+            });
+        });
+    });
 }
 
 fn camera_movement(
@@ -147,7 +199,7 @@ fn cursor_to_world_position(
         mycoords.0 = world_position + Vec2::new(0.5, 0.5);
     }
 }
-
+// update the coords outdated!
 fn update_ui(
     mut mouse_text: Query<&mut Text>,
     mouse_position: Res<MyWorldCoords>
@@ -218,4 +270,3 @@ fn spawn_machine(commands: &mut Commands, asset_server: &AssetServer, position: 
         EntityType("turtle".to_string())
     ));
 }
-
