@@ -2,8 +2,11 @@ use bevy::{math::vec3, prelude::*, scene::ron::de::Position, window::PrimaryWind
 use perlin2d::PerlinNoise2D;
 use rand::prelude::*;
 
-const WORLD_X: i32 = 100;
-const WORLD_Y: i32 = 100;
+mod world;
+use world::WorldPlugin;
+
+const WORLD_X: i32 = 10;
+const WORLD_Y: i32 = 10;
 
 #[derive(Component,Debug)]
 struct WorldPixel(String);
@@ -25,6 +28,7 @@ fn main() {
         .insert_resource(MyWorldCoords(Vec2 { x: 0., y: 0. }))
         .insert_resource(PixelsTaked(vec![Vec3 { x: 0., y: 0., z: 0. }]))
         .add_plugins(DefaultPlugins)
+        .add_plugins(WorldPlugin)
         .add_systems(Startup, (setup, select_machine_ui))
         .add_systems(Update, (cursor_to_world_position, pixel_selected, pixel_interaction, camera_movement))
         .run();
@@ -38,7 +42,7 @@ fn setup(mut commands: Commands) {
         transform: Transform::from_xyz(-2., 0., 0.8),
         ..default()
     }).insert(EntityType("selected".to_string()));
-    generate_world(&mut commands);
+    //generate_world(&mut commands);
 }
 
 fn generate_world(mut commands: &mut Commands) {
