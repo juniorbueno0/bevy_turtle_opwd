@@ -12,7 +12,7 @@ struct PixelColor(Color);
 struct PixelType(String);
 
 #[derive(Component, Debug)]
-enum WorldEntityType {
+pub enum WorldEntityType {
     IsDeepWater(PixelType, PixelPosition, PixelColor),
     IsNormalWater(PixelType, PixelPosition, PixelColor),
     IsSand(PixelType, PixelPosition, PixelColor),
@@ -22,17 +22,17 @@ enum WorldEntityType {
 }
 
 #[derive(Resource, Debug)]
-pub struct PixelData(Vec<WorldEntityType>);
+pub struct PixelData(pub Vec<WorldEntityType>);
 
-const WORLD_X_SIZE: i32 = 400;
-const WORLD_Y_SIZE: i32 = 400;
+const WORLD_X_SIZE: i32 = 10;
+const WORLD_Y_SIZE: i32 = 10;
 
 pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app:&mut App) {
         app.insert_resource(PixelData(Vec::new()))
-            .add_systems(Startup, (generate_world_pixel, generate_world_data));
+            .add_systems(Startup, (generate_world_data, generate_world_pixel));
     }
 }
 

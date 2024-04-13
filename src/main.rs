@@ -5,6 +5,8 @@ use bevy::{math::vec3, prelude::*, scene::ron::de::Position, window::PrimaryWind
 mod world;
 use world::WorldPlugin;
 
+use crate::world::PixelData;
+
 // const WORLD_X: i32 = 10;
 // const WORLD_Y: i32 = 10;
 
@@ -206,7 +208,9 @@ fn cursor_to_world_position(
 
 fn pixel_selected(
     mouse_position: Res<MyWorldCoords>,
-    mut pixel_selected: Query<(&mut Transform, &EntityType), With<Sprite>>
+    mut pixel_: ResMut<PixelData>,
+    mut pixel_selected: Query<(&mut Transform, &EntityType), With<Sprite>>,
+    input: Res<ButtonInput<MouseButton>>,
 ) {
     for mut pixel in pixel_selected.iter_mut() {
         if pixel.1.0 == "selected".to_string() {
