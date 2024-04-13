@@ -22,10 +22,10 @@ enum WorldEntityType {
 }
 
 #[derive(Resource, Debug)]
-struct PixelData(Vec<WorldEntityType>);
+pub struct PixelData(Vec<WorldEntityType>);
 
-const WORLD_X_SIZE: i32 = 20;
-const WORLD_Y_SIZE: i32 = 20;
+const WORLD_X_SIZE: i32 = 400;
+const WORLD_Y_SIZE: i32 = 400;
 
 pub struct WorldPlugin;
 
